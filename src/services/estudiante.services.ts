@@ -1,112 +1,65 @@
-import { AppDataSource } from "../config/db";
 import { Estudiantes } from "../entities/Estudiante.entity";
-import { Carrera } from "../entities/Carrera.entity"; // Importa la entidad Carrera
+import { AppDataSource } from "../config/db";
+import { Carrera } from "../entities/Carrera.entity";
+import { EstudianteDTO } from "../interfaces/EstudianteDTO";
 
-//Crear el repositorio para Estudiantes
-const estudianteRepository = AppDataSource.getRepository(Estudiantes);
+const estudiantesRepository = AppDataSource.getRepository(Estudiantes);
+const carreraRepository = AppDataSource.getRepository(Carrera);
 
-// C = Create, R = Read, U = Update, D = Delete
-
-// Leer todos los estudiantes
-export const srvGetEstudiantes = async () => {
-    const estudiantes = await estudianteRepository.find({
-        relations: ['carrera'], // Cargar la relación con la carrera
-        order: { nombreEstudiante: 'ASC' }
-    });
-    return estudiantes;
-}
-
-// Crear un nuevo estudiante
-export const srvCreateEstudiante = async (
-    pNombreEstudiante: string,
-    pDireccion: string,
-    pCorreo: string,
-    pTelefono: string,
-    pIdCarrera: number // Recibe el ID de la carrera
-) => {
-    const nuevoEstudiante = new Estudiantes();
-    nuevoEstudiante.nombreEstudiante = pNombreEstudiante;
-    nuevoEstudiante.direccion = pDireccion;
-    nuevoEstudiante.correo = pCorreo;
-    nuevoEstudiante.telefono = pTelefono;
-
-    // Buscar la carrera relacionada
-    const carreraRepository = AppDataSource.getRepository(Carrera);
-    const carrera = await carreraRepository.findOne({ where: { idCarrera: pIdCarrera } });
-
-    if (!carrera) {
-        // Manejar el caso en que la carrera no existe
-        console.error(`La carrera con ID ${pIdCarrera} no existe.`);
-        return null; // O lanzar un error
-    }
-
-    nuevoEstudiante.carrera = carrera; // Asignar la carrera al estudiante
-
-    await estudianteRepository.save(nuevoEstudiante);
-    return nuevoEstudiante; // Opcional: retornar el estudiante creado
+// Obtener todos los estudiantes
+export const srvGetEstudiantes = async (): Promise<Estudiantes[]> => {
+    return estudiantesRepository.find({ relations: ['carrera'] });
 }
 
 // Obtener un estudiante por ID
-export const srvGetEstudianteByID = async (pIdEstudiante: number) => {
-    const estudiante = await estudianteRepository.findOne({
-        where: { idEstudiante: pIdEstudiante },
-        relations: ['carrera'] // Cargar la relación con la carrera
-    });
-    return estudiante;
+export const srvGetEstudianteByID = async (id: number): Promise<Estudiantes | null> => {
+    return estudiantesRepository.findOne({ where: { idEstudiante: id }, relations: ['carrera'] });
 }
 
-// Actualizar estudiante
-export const srvUpdateEstudiante = async (
-    pIdEstudiante: number,
-    pNombreEstudiante?: string,
-    pDireccion?: string,
-    pCorreo?: string,
-    pTelefono?: string,
-    pIdCarrera?: number // Opcional: para actualizar la carrera
-) => {
-    const estudiante = await estudianteRepository.findOne({
-        where: { idEstudiante: pIdEstudiante }
-    });
-
-    if (!estudiante) {
-        return null;
+// Crear un nuevo estudiante
+export const srvCreateEstudiante = async (data: EstudianteDTO): Promise<Estudiantes> => {
+    const carrera = await carreraRepository.findOneBy({ idCarrera: data.idCarrera });
+    if (!carrera) {
+        throw new Error("Carrera no encontrada");
     }
 
-    if (pNombreEstudiante !== undefined) {
-        estudiante.nombreEstudiante = pNombreEstudiante;
-    }
-    if (pDireccion !== undefined) {
-        estudiante.direccion = pDireccion;
-    }
-    if (pCorreo !== undefined) {
-        estudiante.correo = pCorreo;
-    }
-    if (pTelefono !== undefined) {
-        estudiante.telefono = pTelefono;
-    }
-    if (pIdCarrera !== undefined) {
-        // Buscar la nueva carrera relacionada
-        const carreraRepository = AppDataSource.getRepository(Carrera);
-        const nuevaCarrera = await carreraRepository.findOne({ where: { idCarrera: pIdCarrera } });
-        if (!nuevaCarrera) {
-            console.error(`La carrera con ID ${pIdCarrera} no existe.`);
-            return null; // O lanzar un error
-        }
-        estudiante.carrera = nuevaCarrera;
-    }
+    const nuevoEstudiante = new Estudiantes();
+    nuevoEstudiante.nombreEstudiante = data.nombreEstudiante;
+    nuevoEstudiante.direccion = data.direccion;
+    nuevoEstudiante.correo = data.correo;
+    nuevoEstudiante.telefono = data.telefono;
+    nuevoEstudiante.carrera = carrera;
 
-    return await estudianteRepository.save(estudiante);
+    return estudiantesRepository.save(nuevoEstudiante);
 }
 
-// Eliminar estudiante
-export const srvDeleteEstudiante = async (pIdEstudiante: number) => {
-    const estudiante = await estudianteRepository.findOne({
-        where: { idEstudiante: pIdEstudiante }
-    });
-
+// Actualizar un estudiante
+export const srvUpdateEstudiante = async (idEstudiante: number, data: EstudianteDTO): Promise<Estudiantes> => {
+    const estudiante = await estudiantesRepository.findOne({ where: { idEstudiante }, relations: ['carrera'] });
     if (!estudiante) {
-        return null;
+        throw new Error("Estudiante no encontrado");
     }
 
-    return await estudianteRepository.remove(estudiante);
+    const carrera = await carreraRepository.findOneBy({ idCarrera: data.idCarrera });
+    if (!carrera) {
+        throw new Error("Carrera no encontrada");
+    }
+
+    estudiante.nombreEstudiante = data.nombreEstudiante;
+    estudiante.direccion = data.direccion;
+    estudiante.correo = data.correo;
+    estudiante.telefono = data.telefono;
+    estudiante.carrera = carrera;
+
+    return estudiantesRepository.save(estudiante);
+}
+
+// Eliminar un estudiante
+export const srvDeleteEstudiante = async (idEstudiante: number): Promise<Estudiantes> => {
+    const estudiante = await estudiantesRepository.findOne({ where: { idEstudiante } });
+    if (!estudiante) {
+        throw new Error("Estudiante no encontrado");
+    }
+
+    return estudiantesRepository.remove(estudiante);
 }
