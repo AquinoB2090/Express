@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const carrera_controller_1 = require("../Controllers/carrera.controller");
+const router = (0, express_1.Router)();
+router.get('/', carrera_controller_1.getCarreras);
+router.get('/:id', carrera_controller_1.getCarrera);
+router.post('/', carrera_controller_1.createCarrera);
+router.put('/:id', carrera_controller_1.updateCarrera);
+router.delete('/:id', carrera_controller_1.deleteCarrera);
+exports.default = router;
